@@ -3,6 +3,7 @@ const Room = require("../models/Room");
 require("../models/User");
 // login user can create room details 
 // login user can create room details
+// login user can create room details
 exports.createRoom = async (req, res) => {
   try {
     const {
@@ -13,16 +14,21 @@ exports.createRoom = async (req, res) => {
       price,
       listingType,
       roommatePreference,
-      images,
       latitude,
       longitude,
     } = req.body;
 
+    // Validate location
     if (!latitude || !longitude) {
       return res.status(400).json({
         message: "Latitude and Longitude are required",
       });
     }
+
+    // 📸 Handle uploaded images (from multer)
+    const imagePaths = req.files
+      ? req.files.map((file) => `/uploads/${file.filename}`)
+      : [];
 
     const room = await Room.create({
       title,
@@ -32,13 +38,14 @@ exports.createRoom = async (req, res) => {
       price,
       listingType,
       roommatePreference,
-      images,
       owner: req.user._id,
+
+      images: imagePaths, // ✅ Corrected here
 
       // 📍 GeoJSON location
       location: {
         type: "Point",
-        coordinates: [Number(longitude), Number(latitude)], // IMPORTANT: [lng, lat]
+        coordinates: [Number(longitude), Number(latitude)], // [lng, lat]
       },
     });
 
@@ -120,22 +127,61 @@ exports.updateRoom = async (req, res) => {
 
     // 🔐 Check ownership
     if (room.owner.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: "Not authorized to update this room" });
+      return res.status(403).json({
+        message: "Not authorized to update this room",
+      });
     }
 
-    const updatedRoom = await Room.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
+    const {
+      title,
+      description,
+      city,
+      fullAddress,
+      price,
+      listingType,
+      roommatePreference,
+      latitude,
+      longitude,
+    } = req.body;
+
+    // 📸 If new images uploaded → replace old images
+    if (req.files && req.files.length > 0) {
+      const imagePaths = req.files.map(
+        (file) => `/uploads/${file.filename}`
+      );
+      room.images = imagePaths;
+    }
+
+    // 📍 If location updated
+    if (latitude && longitude) {
+      room.location = {
+        type: "Point",
+        coordinates: [Number(longitude), Number(latitude)], // [lng, lat]
+      };
+    }
+
+    // 📝 Update other fields only if provided
+    if (title) room.title = title;
+    if (description) room.description = description;
+    if (city) room.city = city;
+    if (fullAddress) room.fullAddress = fullAddress;
+    if (price) room.price = price;
+    if (listingType) room.listingType = listingType;
+    if (roommatePreference) room.roommatePreference = roommatePreference;
+
+    await room.save();
 
     res.json({
       message: "Room updated successfully",
-      room: updatedRoom,
+      room,
     });
 
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.log("UPDATE ERROR:", error);
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
   }
 };
 
@@ -190,6 +236,46 @@ exports.getRoomById = async (req, res) => {
 
   } catch (error) {
     console.log("ROOM DETAIL ERROR:", error);
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// get nearest room to ur location
+exports.getNearbyRooms = async (req, res) => {
+  try {
+    const { lat, lng, distance } = req.query;
+
+    if (!lat || !lng) {
+      return res.status(400).json({
+        message: "Latitude and Longitude are required",
+      });
+    }
+
+    const maxDistance = Number(distance) || 2000; // default 2km
+
+    const rooms = await Room.find({
+      location: {
+        $near: {
+          $geometry: {
+            type: "Point",
+            coordinates: [Number(lng), Number(lat)], // [lng, lat]
+          },
+          $maxDistance: maxDistance,
+        },
+      },
+      isActive: true,
+    }).populate("owner", "name");
+
+    res.status(200).json({
+      total: rooms.length,
+      rooms,
+    });
+
+  } catch (error) {
+    console.log("NEARBY ERROR:", error);
     res.status(500).json({
       message: "Server error",
       error: error.message,
