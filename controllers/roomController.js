@@ -2,19 +2,57 @@ const mongoose=require('mongoose')
 const Room = require("../models/Room");
 require("../models/User");
 // login user can create room details 
+// login user can create room details
 exports.createRoom = async (req, res) => {
   try {
+    const {
+      title,
+      description,
+      city,
+      fullAddress,
+      price,
+      listingType,
+      roommatePreference,
+      images,
+      latitude,
+      longitude,
+    } = req.body;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        message: "Latitude and Longitude are required",
+      });
+    }
+
     const room = await Room.create({
-      ...req.body,
+      title,
+      description,
+      city,
+      fullAddress,
+      price,
+      listingType,
+      roommatePreference,
+      images,
       owner: req.user._id,
+
+      // 📍 GeoJSON location
+      location: {
+        type: "Point",
+        coordinates: [Number(longitude), Number(latitude)], // IMPORTANT: [lng, lat]
+      },
     });
 
     res.status(201).json({
       message: "Room created successfully",
       room,
     });
+
   } catch (error) {
-    res.status(500).json({ message: "Server error", error });
+    console.log("CREATE ROOM ERROR:", error);
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
   }
 };
 // get all rooms here 
