@@ -1,3 +1,4 @@
+const mongoose=require('mongoose')
 const Room = require("../models/Room");
 require("../models/User");
 // login user can create room details 
@@ -104,5 +105,31 @@ exports.deleteRoom = async (req, res) => {
 
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+// room details by id
+exports.getRoomById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 🔎 Check valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid room ID" });
+    }
+
+    const room = await Room.findById(id).populate("owner", "name email");
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    res.status(200).json(room);
+
+  } catch (error) {
+    console.log("ROOM DETAIL ERROR:", error);
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
   }
 };
