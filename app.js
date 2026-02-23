@@ -9,7 +9,7 @@ app.use(express.urlencoded({extended:true}))
 
 app.get('/',(req,res)=>{
     console.log("working / request")
-    res.send("working ")
+    res.send(" backend server running  ")
 
 })
 
