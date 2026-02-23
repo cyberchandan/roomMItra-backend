@@ -8,7 +8,7 @@
   },
   "author": "chandan kr.m",
   "license": "ISC",
-  "description": "",
+  "description": "this project solve real life issues of room seeker,local area room finder or anyone looking for room partner to share room to reduce cost of expensive  ",
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
