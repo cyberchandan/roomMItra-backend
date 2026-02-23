@@ -112,18 +112,27 @@ exports.getRoomById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 🔎 Check valid ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Invalid room ID" });
     }
 
-    const room = await Room.findById(id).populate("owner", "name email");
+    const room = await Room.findById(id)
+      .populate("owner", "name email phone");
 
     if (!room) {
       return res.status(404).json({ message: "Room not found" });
     }
 
-    res.status(200).json(room);
+    // Convert mongoose doc to plain object
+    let roomData = room.toObject();
+
+    // 🔐 Smart visibility
+    if (!req.user) {
+      roomData.owner.email = "Login required";
+      roomData.owner.phone = "Login required";
+    }
+
+    res.status(200).json(roomData);
 
   } catch (error) {
     console.log("ROOM DETAIL ERROR:", error);

@@ -50,7 +50,7 @@ exports.loginUser = async (req, res) => {
       // generate JWT
       const token = jwt.sign(
         { id: user._id },
-        "roommitra_secret_key",
+        process.env.JWT_SECRET,
         { expiresIn: "7d" }
       );
   
