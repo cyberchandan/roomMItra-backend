@@ -20,21 +20,19 @@ exports.createRoom = async (req, res) => {
 // get all rooms here 
 exports.getAllRooms = async (req, res) => {
   try {
-    let filter = {};
-
+    // Filters
     const { city, listingType, minPrice, maxPrice } = req.query;
 
-    // City filter
+    let filter = {};
+
     if (city) {
-      filter.city = city;
+      filter.city = { $regex: city, $options: "i" };
     }
 
-    // Listing Type filter
     if (listingType) {
       filter.listingType = listingType;
     }
 
-    // Price filter
     if (minPrice && maxPrice) {
       filter.price = {
         $gte: Number(minPrice),
@@ -42,12 +40,30 @@ exports.getAllRooms = async (req, res) => {
       };
     }
 
-    const rooms = await Room.find(filter).populate("owner", "name email");
+    // Pagination
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
 
-    res.status(200).json(rooms);
+    const skip = (page - 1) * limit;
+
+    const totalRooms = await Room.countDocuments(filter);
+
+    const rooms = await Room.find(filter)
+      .populate("owner", "name")
+      .sort({ createdAt: -1 }) // latest first
+      .skip(skip)
+      .limit(limit);
+
+    res.status(200).json({
+      currentPage: page,
+      totalPages: Math.ceil(totalRooms / limit),
+      totalRooms,
+      hasMore: skip + rooms.length < totalRooms,
+      rooms,
+    });
 
   } catch (error) {
-    console.log("FILTER ERROR:", error);
+    console.log("GET ROOMS ERROR:", error);
     res.status(500).json({
       message: "Server error",
       error: error.message,
